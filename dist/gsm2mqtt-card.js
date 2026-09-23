@@ -24,7 +24,7 @@ const t=globalThis,i$1=t=>t,s$1=t.trustedTypes,e=s$1?s$1.createPolicy("lit-html"
  * SPDX-License-Identifier: BSD-3-Clause
  */const s=globalThis;class i extends y$1{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0;}createRenderRoot(){const t=super.createRenderRoot();return this.renderOptions.renderBefore??=t.firstChild,t}update(t){const r=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=D(r,this.renderRoot,this.renderOptions);}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(true);}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(false);}render(){return E}}i._$litElement$=true,i["finalized"]=true,s.litElementHydrateSupport?.({LitElement:i});const o=s.litElementPolyfillSupport;o?.({LitElement:i});(s.litElementVersions??=[]).push("4.2.2");
 
-console.info('%c GSM2MQTT-DASHBOARD %c v1.0.6 ', 'color: white; background: #03a9f4; font-weight: 700; border-radius: 3px 0 0 3px;', 'color: #03a9f4; background: #e1f5fe; font-weight: 700; border-radius: 0 3px 3px 0;');
+console.info('%c GSM2MQTT-DASHBOARD %c v1.1.0 ', 'color: white; background: #03a9f4; font-weight: 700; border-radius: 3px 0 0 3px;', 'color: #03a9f4; background: #e1f5fe; font-weight: 700; border-radius: 0 3px 3px 0;');
 
 class GSM2MQTTCard extends i {
   static get properties() {
@@ -180,14 +180,41 @@ class GSM2MQTTCard extends i {
   }
 
   setConfig(config) {
-    if (!config.modem_id) {
-      throw new Error('You need to define a modem_id');
-    }
     this.config = {
       title: 'GSM2MQTT Dashboard',
       topic_prefix: 'gsm2mqtt',
+      modem_id: '',
       ...config
     };
+  }
+
+  _getModemId() {
+    if (this.config && this.config.modem_id) {
+      return this.config.modem_id;
+    }
+    if (!this.hass || !this.hass.states) {
+      return 'gsm_modem';
+    }
+    // Check known entities for modem_id in attributes
+    const candidateEntities = [
+      this.hass.states['sensor.gsm_modem_status'],
+      this.hass.states['sensor.gsm_modem_last_sms'],
+      this.hass.states['sensor.gsm_modem_signal'],
+    ];
+    for (const ent of candidateEntities) {
+      if (ent && ent.attributes && ent.attributes.modem_id) {
+        return ent.attributes.modem_id;
+      }
+    }
+    // Scan all sensor states for modem_id attribute
+    for (const [key, state] of Object.entries(this.hass.states)) {
+      if ((key.startsWith('sensor.') || key.startsWith('binary_sensor.')) && key.includes('gsm')) {
+        if (state && state.attributes && state.attributes.modem_id) {
+          return state.attributes.modem_id;
+        }
+      }
+    }
+    return 'gsm_modem';
   }
 
   _resolveEntity(type, keywords) {
@@ -202,35 +229,62 @@ class GSM2MQTTCard extends i {
     const states = this.hass.states;
     if (!states) return null;
 
-    // 2. Exact candidates: sensor.<modemId>_<keyword>
-    for (const kw of keywords) {
-      const exactKey = `sensor.${modemId}_${kw}`;
-      if (states[exactKey]) return states[exactKey];
-    }
-
-    // 3. Search:
-    // Split modemId into sub-tokens, e.g. "neoway_m590" -> ["neoway", "m590"]
-    const idParts = modemId.split(/[^a-z0-9]/).filter(p => p.length >= 3);
-    const stateKeys = Object.keys(states);
-
-    // Pass 1: Match modemId/token AND keyword
-    for (const key of stateKeys) {
-      if (!key.startsWith('sensor.') && !key.startsWith('binary_sensor.')) continue;
-      const lowerKey = key.toLowerCase();
-      const entity = states[key];
-      const friendlyName = ((entity.attributes && entity.attributes.friendly_name) || '').toLowerCase();
-
-      const matchesKeyword = keywords.some(kw => lowerKey.includes(kw) || friendlyName.includes(kw));
-      if (!matchesKeyword) continue;
-
-      const matchesModem = lowerKey.includes(modemId) || idParts.some(p => lowerKey.includes(p) || friendlyName.includes(p));
-      if (matchesModem) {
-        return entity;
+    // 2. If modem_id is explicitly configured (e.g. "modem2", "siemens_mc35i"):
+    if (modemId) {
+      for (const kw of keywords) {
+        const candidateKeys = [
+          `sensor.${modemId}_${kw}`,
+          `sensor.gsm_modem_${modemId}_${kw}`,
+          `binary_sensor.${modemId}_${kw}`,
+        ];
+        for (const k of candidateKeys) {
+          if (states[k]) return states[k];
+        }
       }
     }
 
-    // Pass 2: Fallback across all sensors by keyword (for setups with only 1 GSM modem)
-    for (const key of stateKeys) {
+    // 3. Option B Standard naming: sensor.gsm_modem_<keyword> (for slot 1 / single modem)
+    if (!modemId || modemId === '1' || modemId === 'gsm_modem') {
+      for (const kw of keywords) {
+        const optBKey = `sensor.gsm_modem_${kw}`;
+        if (states[optBKey]) return states[optBKey];
+        const binKey = `binary_sensor.gsm_modem_${kw}`;
+        if (states[binKey]) return states[binKey];
+      }
+    }
+
+    // 4. If slot number specified (e.g. "2"): sensor.gsm_modem_2_<keyword>
+    if (/^\d+$/.test(modemId)) {
+      const slotNum = modemId;
+      for (const kw of keywords) {
+        const slotKey = `sensor.gsm_modem_${slotNum}_${kw}`;
+        if (states[slotKey]) return states[slotKey];
+        const binSlotKey = `binary_sensor.gsm_modem_${slotNum}_${kw}`;
+        if (states[binSlotKey]) return states[binSlotKey];
+      }
+    }
+
+    // 5. Search by tokens if modemId provided
+    if (modemId) {
+      const idParts = modemId.split(/[^a-z0-9]/).filter(p => p.length >= 3);
+      for (const key of Object.keys(states)) {
+        if (!key.startsWith('sensor.') && !key.startsWith('binary_sensor.')) continue;
+        const lowerKey = key.toLowerCase();
+        const entity = states[key];
+        const friendlyName = ((entity.attributes && entity.attributes.friendly_name) || '').toLowerCase();
+
+        const matchesKeyword = keywords.some(kw => lowerKey.includes(kw) || friendlyName.includes(kw));
+        if (!matchesKeyword) continue;
+
+        const matchesModem = lowerKey.includes(modemId) || idParts.some(p => lowerKey.includes(p) || friendlyName.includes(p));
+        if (matchesModem) {
+          return entity;
+        }
+      }
+    }
+
+    // 6. Universal Fallback across all sensors by keyword (for single GSM modem setups)
+    for (const key of Object.keys(states)) {
       if (!key.startsWith('sensor.') && !key.startsWith('binary_sensor.')) continue;
       const lowerKey = key.toLowerCase();
       const entity = states[key];
@@ -247,7 +301,8 @@ class GSM2MQTTCard extends i {
 
   _publishMqtt(subTopic, payload) {
     if (!this.hass) return;
-    const topic = `${this.config.topic_prefix}/modem/${this.config.modem_id}/${subTopic}`;
+    const modemId = this._getModemId();
+    const topic = `${this.config.topic_prefix}/modem/${modemId}/${subTopic}`;
     this.hass.callService('mqtt', 'publish', {
       topic: topic,
       payload: payload
@@ -442,7 +497,7 @@ class GSM2MQTTCard extends i {
           </div>
 
           <div style="font-size:0.7em; color:var(--secondary-text-color, #727272); text-align:right; margin-top:10px;">
-            GSM2MQTT Dashboard v1.0.6
+            GSM2MQTT Dashboard v1.1.0
           </div>
 
         </div>

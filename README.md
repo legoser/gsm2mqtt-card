@@ -32,16 +32,28 @@ To test the card on your live Home Assistant instance without caching issues, fo
 
 ## ⚙️ Card Configuration
 
-Add the custom card to your Lovelace dashboard:
+### Single Modem (Zero Configuration):
+
+If you have a single modem connected to the gateway, simply add the card with zero configuration:
 
 ```yaml
 type: custom:gsm2mqtt-card
-modem_id: neoway_m590
-title: GSM Gateway
-topic_prefix: gsm2mqtt
 ```
 
-- `modem_id` (Required): The ID of the modem as configured in your `gsm2mqtt` gateway.
+The card will automatically connect to the primary GSM modem (`sensor.gsm_modem_*`) and detect all sensors, status, and communication channels.
+
+### Multi-Modem or Custom Configuration:
+
+If you have multiple modems or wish to target a specific modem:
+
+```yaml
+type: custom:gsm2mqtt-card
+modem_id: 2                   # Or explicit modem ID (e.g. siemens_mc35i)
+title: Secondary GSM Gateway  # (Optional) Card title
+topic_prefix: gsm2mqtt        # (Optional) Gateway topic prefix, default: gsm2mqtt
+```
+
+- `modem_id` (Optional): The modem slot index (`1`, `2`) or unique ID (`siemens_mc35i`). Defaults to automatic auto-detection.
 - `title` (Optional): Title of the card. Default is `GSM2MQTT Dashboard`.
 - `topic_prefix` (Optional): The MQTT topic prefix used by the gateway. Default is `gsm2mqtt`.
 
