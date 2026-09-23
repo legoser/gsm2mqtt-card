@@ -1,0 +1,48 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/gsm2mqtt
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config with secrets (example is tracked)
+configs/gsm2mqtt.yaml
+configs/mosquitto/mosquitto.conf
+configs/mosquitto/acl
+configs/mosquitto/passwd
+
+# Runtime data
+data/
+.env
+node_modules/
+
+# Agent & AI configuration
+.gemini/
+AGENTS.md
+agents.md
+PLAN.md
+plan.md

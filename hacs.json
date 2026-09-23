@@ -1,0 +1,8 @@
+{
+  "name": "GSM2MQTT Dashboard",
+  "render_readme": true,
+  "filename": "gsm2mqtt-card.js",
+  "hacs": "1.33.0",
+  "zip_release": false,
+  "domains": []
+}

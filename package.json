@@ -1,0 +1,26 @@
+{
+  "name": "gsm2mqtt-dashboard",
+  "version": "1.0.0",
+  "description": "Lovelace Custom Card for GSM2MQTT Gateway",
+  "main": "dist/gsm2mqtt-card.js",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "gsm2mqtt",
+    "mqtt"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "lit": "^3.1.2"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.12.0"
+  }
+}
