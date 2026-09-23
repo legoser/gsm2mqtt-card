@@ -57,6 +57,26 @@ topic_prefix: gsm2mqtt        # (Optional) Gateway topic prefix, default: gsm2mq
 - `title` (Optional): Title of the card. Default is `GSM2MQTT Dashboard`.
 - `topic_prefix` (Optional): The MQTT topic prefix used by the gateway. Default is `gsm2mqtt`.
 
+## 🔔 Home Assistant Automations & Notifications
+
+GSM2MQTT automatically exposes a standard Home Assistant `notify` entity via MQTT Auto-Discovery:
+- **Entity ID:** `notify.gsm_modem` (or `notify.gsm_modem_1_notify`)
+
+### Using in Automations UI
+In the Home Assistant Automation visual editor, select **Action** -> **Notifications** -> **Send notification via notify.gsm_modem**:
+- **Message:** The text of your SMS notification.
+- **Target (Optional):** Destination phone number (`+79001234567`). If omitted or left empty, the gateway automatically broadcasts the SMS to all alert recipients configured in the card / gateway!
+
+### Call-Drop Fallback
+If configured in the gateway (`security.fallback_call: true`), an automatic voice call (call-drop) will be dialed to the recipient if the SMS fails to deliver via the cellular network.
+
+## 👥 Alert Recipients Management
+
+You can manage authorized notification recipient phone numbers directly from the dashboard card without restarting the gateway or editing configuration files.
+- The numbers are persisted on the gateway in `data/recipients.json`.
+- Broadcast SMS: sending an SMS with an empty recipient will send it to all active recipients.
+- Editable via the card or via the discovered Home Assistant Text entity `text.gsm2mqtt_gateway_recipients`.
+
 ## 🤖 AI Integration (Home Assistant Assist)
 
 To allow Home Assistant's built-in AI (Assist) to send SMS using your gateway, you can register a script that the AI can call.
@@ -69,30 +89,26 @@ notify_gsm2mqtt_sms:
   icon: "mdi:message-processing"
   fields:
     target:
-      description: "Номер получателя в формате +79XXXXXXXXX"
+      description: "Номер получателя в формате +79XXXXXXXXX (необязательно)"
       example: "+79001234567"
-      required: true
+      required: false
     message:
       description: "Текст SMS сообщения"
       example: "Внимание!"
       required: true
   sequence:
-    - service: mqtt.publish
+    - action: notify.send_message
+      target:
+        entity_id: notify.gsm_modem
       data:
-        topic: "gsm2mqtt/modem/neoway_m590/sms/send"
-        payload: >
-          {
-            "to": "{{ target }}",
-            "text": "{{ message }}",
-            "request_report": true
-          }
+        message: "{{ message }}"
+        target: "{{ target }}"
 ```
-*(Make sure to change `neoway_m590` to your actual `modem_id`)*
 
 **Exposing to Assist:**
 1. Navigate to **Settings -> Voice Assistants -> Expose**.
 2. Find the script `Отправить SMS через GSM2MQTT` and enable it for Assist.
-3. Now you can say or type to Assist: *"Отправь SMS на номер +79991234567 с текстом Привет!"*, and Assist will execute the script!
+3. Now you can say or type to Assist: *"Отправь SMS на номер +79991234567 с текстом Привет!"*, and Assist will execute the notification!
 
 ## 🛠 Development
 

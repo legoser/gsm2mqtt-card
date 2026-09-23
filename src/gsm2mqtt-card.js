@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 
-console.info('%c GSM2MQTT-DASHBOARD %c v1.1.0 ', 'color: white; background: #03a9f4; font-weight: 700; border-radius: 3px 0 0 3px;', 'color: #03a9f4; background: #e1f5fe; font-weight: 700; border-radius: 0 3px 3px 0;');
+console.info('%c GSM2MQTT-DASHBOARD %c v1.2.0 ', 'color: white; background: #03a9f4; font-weight: 700; border-radius: 3px 0 0 3px;', 'color: #03a9f4; background: #e1f5fe; font-weight: 700; border-radius: 0 3px 3px 0;');
 
 class GSM2MQTTCard extends LitElement {
   static get properties() {
@@ -148,6 +148,35 @@ class GSM2MQTTCard extends LitElement {
       .ussd-box {
         margin-top: 6px;
         border-left: 3px solid var(--primary-color, #03a9f4);
+      }
+      .recipient-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+        min-height: 24px;
+      }
+      .recipient-tag {
+        background: var(--secondary-background-color, #f5f5f5);
+        border: 1px solid var(--divider-color, #e0e0e0);
+        border-radius: 16px;
+        padding: 4px 10px;
+        font-size: 0.85em;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--primary-text-color, #212121);
+      }
+      .recipient-del {
+        cursor: pointer;
+        color: var(--error-color, #c62828);
+        font-weight: bold;
+        font-size: 1.1em;
+        line-height: 1;
+        padding: 0 2px;
+      }
+      .recipient-del:hover {
+        opacity: 0.7;
       }
       .mb-1 {
         margin-bottom: 6px;
@@ -308,12 +337,52 @@ class GSM2MQTTCard extends LitElement {
   }
 
   _handleSms() {
-    const to = this.shadowRoot.getElementById('smsTo').value;
-    const text = this.shadowRoot.getElementById('smsText').value;
-    if (to && text) {
+    const to = (this.shadowRoot.getElementById('smsTo').value || '').trim();
+    const text = (this.shadowRoot.getElementById('smsText').value || '').trim();
+    if (text) {
       this._publishMqtt('sms/send', JSON.stringify({ to, text, request_report: true }));
       this.shadowRoot.getElementById('smsText').value = '';
     }
+  }
+
+  _getRecipients() {
+    if (!this.hass || !this.hass.states) return [];
+    let state = this.hass.states['text.gsm2mqtt_gateway_recipients'] ||
+                this.hass.states['text.gsm_gateway_recipients'];
+    if (!state) {
+      for (const [key, ent] of Object.entries(this.hass.states)) {
+        if (key.includes('recipients')) {
+          state = ent;
+          break;
+        }
+      }
+    }
+    if (!state || !state.state || state.state === 'unavailable' || state.state === 'unknown') {
+      return [];
+    }
+    return state.state.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  }
+
+  _handleAddRecipient() {
+    const input = this.shadowRoot.getElementById('newRecipientInput');
+    if (!input || !input.value.trim()) return;
+    const num = input.value.trim();
+    if (!this.hass) return;
+    const prefix = this.config.topic_prefix || 'gsm2mqtt';
+    this.hass.callService('mqtt', 'publish', {
+      topic: `${prefix}/config/recipients/add`,
+      payload: JSON.stringify({ number: num }),
+    });
+    input.value = '';
+  }
+
+  _handleRemoveRecipient(num) {
+    if (!this.hass) return;
+    const prefix = this.config.topic_prefix || 'gsm2mqtt';
+    this.hass.callService('mqtt', 'publish', {
+      topic: `${prefix}/config/recipients/remove`,
+      payload: JSON.stringify({ number: num }),
+    });
   }
 
   _handleCall() {
@@ -414,6 +483,8 @@ class GSM2MQTTCard extends LitElement {
       }
     }
 
+    const recipients = this._getRecipients();
+
     return html`
       <ha-card header="${this.config.title}">
         <div class="card-content">
@@ -452,10 +523,26 @@ class GSM2MQTTCard extends LitElement {
 
           <!-- Send SMS -->
           <div class="section-title">✉️ Отправить SMS</div>
-          <input type="text" id="smsTo" class="mb-1" placeholder="+79001234567">
+          <input type="text" id="smsTo" class="mb-1" placeholder="+79001234567 (пусто — всем получателям)">
           <textarea id="smsText" rows="2" placeholder="Текст сообщения..."></textarea>
           <div class="input-row" style="justify-content:flex-end;">
             <button @click="${this._handleSms}" ?disabled="${isOffline}">Отправить</button>
+          </div>
+
+          <!-- Alert Recipients -->
+          <div class="section-title">👥 Номера для оповещений (Recipients)</div>
+          <div class="recipient-list">
+            ${recipients.map(num => html`
+              <span class="recipient-tag">
+                <span>📞 ${num}</span>
+                <span class="recipient-del" title="Удалить номер" @click="${() => this._handleRemoveRecipient(num)}">✕</span>
+              </span>
+            `)}
+            ${recipients.length === 0 ? html`<span style="font-size:0.85em; color:var(--secondary-text-color, #727272); font-style:italic;">Список пуст (рассылка отключена)</span>` : html``}
+          </div>
+          <div class="input-row" style="margin-top:6px;">
+            <input type="text" id="newRecipientInput" placeholder="+79001234567">
+            <button @click="${this._handleAddRecipient}" ?disabled="${isOffline}">+ Добавить</button>
           </div>
 
           <!-- Voice Call (Call-Drop) -->
@@ -473,7 +560,7 @@ class GSM2MQTTCard extends LitElement {
           </div>
 
           <div style="font-size:0.7em; color:var(--secondary-text-color, #727272); text-align:right; margin-top:10px;">
-            GSM2MQTT Dashboard v1.1.0
+            GSM2MQTT Dashboard v1.2.0
           </div>
 
         </div>
