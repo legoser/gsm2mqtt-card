@@ -488,17 +488,33 @@ class GSM2MQTTCard extends LitElement {
   }
 
   _handleSaveTariff() {
-    const smsInput = this.shadowRoot.getElementById('tariffSmsLimit');
-    const callInput = this.shadowRoot.getElementById('tariffCallLimit');
+    const smsLimitInput = this.shadowRoot.getElementById('tariffSmsLimit');
+    const smsUsedInput = this.shadowRoot.getElementById('tariffSmsUsed');
+    const callLimitInput = this.shadowRoot.getElementById('tariffCallLimit');
+    const callUsedInput = this.shadowRoot.getElementById('tariffCallUsed');
+    const dataLimitInput = this.shadowRoot.getElementById('tariffDataLimit');
+    const dataUsedInput = this.shadowRoot.getElementById('tariffDataUsed');
     const resetDayInput = this.shadowRoot.getElementById('tariffResetDay');
     const ussdInput = this.shadowRoot.getElementById('tariffBalanceUssd');
 
     const payload = {};
-    if (smsInput && smsInput.value !== '') {
-      payload.sms_limit = parseInt(smsInput.value, 10);
+    if (smsLimitInput && smsLimitInput.value !== '') {
+      payload.sms_limit = parseInt(smsLimitInput.value, 10);
     }
-    if (callInput && callInput.value !== '') {
-      payload.call_minutes_limit = parseInt(callInput.value, 10);
+    if (smsUsedInput && smsUsedInput.value !== '') {
+      payload.sms_month_count = parseInt(smsUsedInput.value, 10);
+    }
+    if (callLimitInput && callLimitInput.value !== '') {
+      payload.call_minutes_limit = parseFloat(callLimitInput.value);
+    }
+    if (callUsedInput && callUsedInput.value !== '') {
+      payload.call_minutes_used = parseFloat(callUsedInput.value);
+    }
+    if (dataLimitInput && dataLimitInput.value !== '') {
+      payload.data_traffic_limit_mb = parseInt(dataLimitInput.value, 10);
+    }
+    if (dataUsedInput && dataUsedInput.value !== '') {
+      payload.data_bytes_used = Math.round(parseFloat(dataUsedInput.value) * 1048576);
     }
     if (resetDayInput && resetDayInput.value !== '') {
       payload.reset_day_of_month = parseInt(resetDayInput.value, 10);
@@ -654,13 +670,15 @@ class GSM2MQTTCard extends LitElement {
       }
     }
 
-    // Tariff Calls display (optional, if limit > 0)
+    // Tariff Calls display (optional, if callLimit > 0 or callUsed > 0)
     let tariffCallsHtml = html``;
     if (showTariff && tariffCallState && tariffCallState.state !== 'unavailable' && tariffCallState.state !== 'unknown') {
       const callLimit = Number(tariffCallState.attributes?.call_minutes_limit ?? 0);
+      const callUsed = Number(tariffCallState.attributes?.call_minutes_used ?? tariffCallState.attributes?.call_minutes_month_count ?? 0);
+      const resetDay = tariffCallState.attributes?.reset_day_of_month || tariffSmsState?.attributes?.reset_day_of_month || 1;
+
       if (callLimit > 0) {
         const callRemaining = Number(tariffCallState.state) || 0;
-        const callMonthCount = Number(tariffCallState.attributes?.call_minutes_month_count ?? 0);
         const percent = Math.min(100, Math.max(0, Math.round((callRemaining / callLimit) * 100)));
         let barColor = 'var(--success-color, #2e7d32)';
         if (percent <= 15) barColor = 'var(--error-color, #c62828)';
@@ -676,7 +694,69 @@ class GSM2MQTTCard extends LitElement {
               <div class="progress-bar" style="width: ${percent}%; background-color: ${barColor};"></div>
             </div>
             <div class="tariff-sub">
-              <span>Использовано: ${callMonthCount} мин.</span>
+              <span>Использовано: ${callUsed} мин.</span>
+              <span>Сброс: ${resetDay}-го числа</span>
+            </div>
+          </div>
+        `;
+      } else if (callUsed > 0) {
+        tariffCallsHtml = html`
+          <div class="tariff-box" style="margin-top:-6px;">
+            <div class="tariff-header">
+              <span>📞 Лимит звонков (минуты)</span>
+              <span class="tariff-val" style="font-size:0.95em;">Без ограничений</span>
+            </div>
+            <div class="tariff-sub">
+              <span>Использовано за месяц: ${callUsed} мин.</span>
+              <span>Лимит не задан</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Tariff Data Traffic display (optional, if dataLimitMB > 0 or dataBytesUsed > 0)
+    let tariffDataHtml = html``;
+    const dataLimitMB = Number(tariffSmsState?.attributes?.data_traffic_limit_mb ?? 0);
+    const dataBytesUsed = Number(tariffSmsState?.attributes?.data_bytes_used ?? 0);
+    const dataBytesRem = Number(tariffSmsState?.attributes?.data_bytes_remaining ?? 0);
+    const resetDay = tariffSmsState?.attributes?.reset_day_of_month || 1;
+
+    if (showTariff && (dataLimitMB > 0 || dataBytesUsed > 0)) {
+      const dataUsedMB = (dataBytesUsed / 1048576).toFixed(1);
+      const dataRemMB = (dataBytesRem / 1048576).toFixed(1);
+
+      if (dataLimitMB > 0) {
+        const percent = Math.min(100, Math.max(0, Math.round((dataBytesRem / (dataLimitMB * 1048576)) * 1048576 > 0 ? (dataBytesRem / (dataLimitMB * 1048576)) * 100 : 0)));
+        let barColor = 'var(--success-color, #2e7d32)';
+        if (percent <= 15) barColor = 'var(--error-color, #c62828)';
+        else if (percent <= 40) barColor = 'var(--warning-color, #ff9800)';
+
+        tariffDataHtml = html`
+          <div class="tariff-box" style="margin-top:-6px;">
+            <div class="tariff-header">
+              <span>🌐 Лимит трафика (интернет)</span>
+              <span class="tariff-val">${dataRemMB} / ${dataLimitMB} MB</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar" style="width: ${percent}%; background-color: ${barColor};"></div>
+            </div>
+            <div class="tariff-sub">
+              <span>Использовано: ${dataUsedMB} MB</span>
+              <span>Сброс: ${resetDay}-го числа</span>
+            </div>
+          </div>
+        `;
+      } else {
+        tariffDataHtml = html`
+          <div class="tariff-box" style="margin-top:-6px;">
+            <div class="tariff-header">
+              <span>🌐 Лимит трафика (интернет)</span>
+              <span class="tariff-val" style="font-size:0.95em;">Без ограничений</span>
+            </div>
+            <div class="tariff-sub">
+              <span>Использовано за месяц: ${dataUsedMB} MB</span>
+              <span>Лимит не задан</span>
             </div>
           </div>
         `;
@@ -736,6 +816,7 @@ class GSM2MQTTCard extends LitElement {
           <!-- Tariff remaining quota progress bar -->
           ${tariffHtml}
           ${tariffCallsHtml}
+          ${tariffDataHtml}
 
           <!-- Last incoming SMS -->
           ${showLastSms ? html`
@@ -811,9 +892,9 @@ class GSM2MQTTCard extends LitElement {
           <!-- Tariff Editor Panel -->
           ${isTariffEditorVisible ? html`
             <div class="tool-panel">
-              <div class="section-title">⚙️ Управление тарифом модема</div>
+              <div class="section-title">⚙️ Управление тарифом и расходом</div>
               <div style="font-size:0.8em; color:var(--secondary-text-color, #727272); margin-bottom:6px;">
-                Задайте лимиты пакета для автоматического отслеживания остатка. 0 — безлимит.
+                Задайте лимиты пакета и текущий расход. 0 — безлимит.
               </div>
               <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
                 <div>
@@ -821,8 +902,28 @@ class GSM2MQTTCard extends LitElement {
                   <input type="number" id="tariffSmsLimit" placeholder="30" value="${tariffSmsState?.attributes?.sms_limit ?? 30}">
                 </div>
                 <div>
+                  <label style="font-size:0.75em; color:var(--secondary-text-color, #727272);">Использовано SMS</label>
+                  <input type="number" id="tariffSmsUsed" placeholder="0" value="${tariffSmsState?.attributes?.sms_month_count ?? 0}">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
+                <div>
                   <label style="font-size:0.75em; color:var(--secondary-text-color, #727272);">Лимит минут в месяц</label>
                   <input type="number" id="tariffCallLimit" placeholder="0" value="${tariffCallState?.attributes?.call_minutes_limit ?? 0}">
+                </div>
+                <div>
+                  <label style="font-size:0.75em; color:var(--secondary-text-color, #727272);">Использовано минут</label>
+                  <input type="number" step="0.1" id="tariffCallUsed" placeholder="0" value="${tariffCallState?.attributes?.call_minutes_used ?? 0}">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
+                <div>
+                  <label style="font-size:0.75em; color:var(--secondary-text-color, #727272);">Лимит трафика (MB)</label>
+                  <input type="number" id="tariffDataLimit" placeholder="0" value="${tariffSmsState?.attributes?.data_traffic_limit_mb ?? 0}">
+                </div>
+                <div>
+                  <label style="font-size:0.75em; color:var(--secondary-text-color, #727272);">Использовано трафика (MB)</label>
+                  <input type="number" step="0.1" id="tariffDataUsed" placeholder="0" value="${((tariffSmsState?.attributes?.data_bytes_used ?? 0) / 1048576).toFixed(1)}">
                 </div>
               </div>
               <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
