@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Package Release Archive
+        run: |
+          mkdir -p release_package
+          cp dist/gsm2mqtt-card.js release_package/
+          cp install.sh README.md hacs.json release_package/
+          cd release_package
+          zip -r ../gsm2mqtt-ha-addon-${TAG}.zip ./*
+          cd ..
+
+      - name: Generate Release Notes
+        run: |
+          {
+            prev="$(git tag --list 'v*.*.*' --sort=-v:refname | grep -x -v "$TAG" | head -n 1 || true)"
+            if [ -n "$prev" ]; then range="$prev..$TAG"; else range="$TAG"; fi
+            echo "## What's changed ($range)"
+            echo
+            git log "$range" --pretty=format:'- %s (%h)' --no-merges 2>/dev/null \
+              || git log -20 HEAD --pretty=format:'- %s (%h)' --no-merges
+            echo ""
+            echo "## 🛠 Installation"
+            echo ""
+            echo "### Via HACS (Recommended)"
+            echo "1. Go to HACS -> Frontend -> 3 dots (top right) -> Custom repositories"
+            echo "2. Add this repository URL with category \`Lovelace\`"
+            echo "3. Click Download"
+            echo ""
+            echo "### Manual Installation"
+            echo "Download \`gsm2mqtt-ha-addon-${TAG}.zip\`, extract it, and run \`./install.sh\` on your Home Assistant machine."
+            echo "Or simply copy \`gsm2mqtt-card.js\` to your \`/config/www/gsm2mqtt/\` directory."
+          } > release_notes.md
+
+      - name: Publish Forgejo Release with assets
+        env:
+          FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+        run: |
+          auth="Authorization: token ${FORGEJO_TOKEN}"
+          # Reuse existing release on re-run, create otherwise.
+          id="$(curl -sS -H "$auth" "${API}/releases/tags/${TAG}" | jq -r '.id // empty')"
+          if [ -z "$id" ]; then
+            id="$(curl -sS -X POST -H "$auth" -H 'Content-Type: application/json' \
+              -d "$(jq -n --arg tag "$TAG" --arg name "$TAG" \
+                --rawfile body release_notes.md \
+                '{tag_name:$tag,name:$name,body:$body,draft:false,prerelease:false}')" \
+              "${API}/releases" | jq -r '.id // empty')"
+          fi
+          if [ -z "$id" ]; then echo "failed to create or find release $TAG" >&2; exit 1; fi
+          echo "release id: $id"
+          for f in dist/gsm2mqtt-card.js gsm2mqtt-ha-addon-${TAG}.zip; do
+            echo "uploading $(basename "$f")..."
+            curl -sS -X POST -H "$auth" --data-binary "@${f}" \
+              "${API}/releases/${id}/assets?name=$(basename "$f")" > /dev/null
+          done
+          echo "published: ${API}/releases/${id}"

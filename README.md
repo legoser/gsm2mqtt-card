@@ -1,34 +1,52 @@
 # GSM2MQTT Dashboard (HA Custom Card)
 
+![Version](https://img.shields.io/github/v/release/legoser/GSM2MQTT-HA-addon?label=Latest%20Release&style=for-the-badge)
+![Downloads](https://img.shields.io/github/downloads/legoser/GSM2MQTT-HA-addon/total?style=for-the-badge)
+![HACS](https://img.shields.io/badge/HACS-Custom_Repository-orange.svg?style=for-the-badge)
+![Build](https://img.shields.io/github/actions/workflow/status/legoser/GSM2MQTT-HA-addon/release.yml?style=for-the-badge)
+![License](https://img.shields.io/github/license/legoser/GSM2MQTT-HA-addon?style=for-the-badge)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 Lovelace Custom Card for managing the [GSM2MQTT](https://github.com/legoser/gsm2mqtt) gateway within Home Assistant.
 
 This frontend plugin provides a rich dashboard to visualize your GSM modem's status (Signal, Balance, Operator), read the last incoming SMS, send SMS messages, and perform USSD or Call-Drop operations directly from the Home Assistant UI.
 
 ## 📦 Installation
 
-### HACS (Recommended)
+Choose the installation method that fits your setup best.
+
+### Method 1: HACS (Recommended for most users)(Coming soon...)
 
 1. Open Home Assistant and navigate to **HACS**.
 2. Go to **Frontend** -> **Custom repositories** (three dots in the top right corner).
 3. Add the URL of this repository and select **Lovelace** as the category.
-4. Click **Install** on the newly added "GSM2MQTT Dashboard" plugin.
+4. Click **Download** on the newly added "GSM2MQTT Dashboard" plugin.
 5. Reload your browser cache.
 
-### Manual Installation (For testing & development)
+### Method 2: One-liner Script (For users without HACS)
 
-To test the card on your live Home Assistant instance without caching issues, follow these steps:
+If you have SSH access to your Home Assistant machine (e.g. Home Assistant OS, Supervised, or Core), you can use our auto-installer script.
 
-1. Clone the repository and build the code:
+1. SSH into your Home Assistant server.
+2. Run the following command:
    ```bash
-   npm install
-   npm run build
+   curl -sL https://raw.githubusercontent.com/legoser/GSM2MQTT-HA-addon/main/install.sh | bash
    ```
-2. Copy the generated file `dist/gsm2mqtt-card.js` to your Home Assistant `config/www/` folder. For example, place it at `config/www/gsm2mqtt/gsm2mqtt-card.js`.
-3. In Home Assistant, navigate to **Settings -> Dashboards -> Resources** (or Lovelace Dashboards -> Resources).
-4. Add a new resource:
-   - **URL:** `/local/gsm2mqtt/gsm2mqtt-card.js?v=1`
+3. The script will automatically download the latest release and place it in your `/config/www/gsm2mqtt/` folder.
+4. In Home Assistant, go to **Settings -> Dashboards -> Resources** and add:
+   - **URL:** `/local/gsm2mqtt/gsm2mqtt-card.js`
    - **Resource Type:** JavaScript Module
-5. **Important:** Browsers heavily cache JavaScript modules. When you update the card's code, copy the new file and **increment the version number** in the Resource URL (e.g., `?v=2`, `?v=3`). Then hard-refresh the page (Ctrl+F5).
+5. Hard-refresh your browser (Ctrl+F5).
+
+### Method 3: Fully Manual (For testing & offline systems)
+
+1. Go to the [Releases](https://github.com/legoser/GSM2MQTT-HA-addon/releases) page and download the latest `gsm2mqtt-ha-addon-*.zip`.
+2. Extract the contents.
+3. Copy the `gsm2mqtt-card.js` file into your Home Assistant `config/www/gsm2mqtt/` directory (you may need to create the `gsm2mqtt` folder).
+4. Register the resource in HA (Settings -> Dashboards -> Resources) with URL `/local/gsm2mqtt/gsm2mqtt-card.js` as a **JavaScript Module**.
+5. Refresh the page cache.
+
+*(Note for devs: If you are actively developing, append `?v=X` to the URL to bust the cache when you replace the file).*
 
 ## ⚙️ Card Configuration
 
