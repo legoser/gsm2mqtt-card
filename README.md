@@ -1,11 +1,6 @@
 # GSM2MQTT Dashboard (HA Custom Card)
 
-![Version](https://img.shields.io/github/v/release/legoser/GSM2MQTT-HA-Dashboard?label=Latest%20Release&style=for-the-badge)
-![Downloads](https://img.shields.io/github/downloads/legoser/GSM2MQTT-HA-Dashboard/total?style=for-the-badge)
-![HACS](https://img.shields.io/badge/HACS-Custom_Repository-orange.svg?style=for-the-badge)
-![Build](https://img.shields.io/github/actions/workflow/status/legoser/GSM2MQTT-HA-Dashboard/release.yml?style=for-the-badge)
-![License](https://img.shields.io/github/license/legoser/GSM2MQTT-HA-Dashboard?style=for-the-badge)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+![Version](https://img.shields.io/github/v/release/legoser/GSM2MQTT-HA-Dashboard?label=Latest%20Release) ![Downloads](https://img.shields.io/github/downloads/legoser/GSM2MQTT-HA-Dashboard/total) ![HACS](https://img.shields.io/badge/HACS-Custom_Repository-orange.svg) ![Build](https://img.shields.io/github/actions/workflow/status/legoser/GSM2MQTT-HA-Dashboard/release.yml) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Lovelace Custom Card for managing the [GSM2MQTT](https://github.com/legoser/gsm2mqtt) gateway within Home Assistant.
 
