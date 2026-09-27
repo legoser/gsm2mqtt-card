@@ -1,6 +1,6 @@
 # GSM2MQTT Dashboard (HA Custom Card)
 
-![Version](https://img.shields.io/github/v/release/legoser/GSM2MQTT-HA-Dashboard?label=Latest%20Release) ![Downloads](https://img.shields.io/github/downloads/legoser/GSM2MQTT-HA-Dashboard/total) ![HACS](https://img.shields.io/badge/HACS-Custom_Repository-orange.svg) ![Build](https://img.shields.io/github/actions/workflow/status/legoser/GSM2MQTT-HA-Dashboard/release.yml) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+![Version](https://img.shields.io/github/v/release/legoser/gsm2mqtt-card?label=Latest%20Release) ![Downloads](https://img.shields.io/github/downloads/legoser/gsm2mqtt-card/total) ![HACS](https://img.shields.io/badge/HACS-Custom_Repository-orange.svg) ![Build](https://img.shields.io/github/actions/workflow/status/legoser/gsm2mqtt-card/release.yml) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Lovelace Custom Card for managing the [GSM2MQTT](https://github.com/legoser/gsm2mqtt) gateway within Home Assistant.
 
@@ -25,7 +25,7 @@ If you have SSH access to your Home Assistant machine (e.g. Home Assistant OS, S
 1. SSH into your Home Assistant server.
 2. Run the following command:
    ```bash
-   curl -sL https://raw.githubusercontent.com/legoser/GSM2MQTT-HA-Dashboard/main/install.sh | bash
+   curl -sL https://raw.githubusercontent.com/legoser/gsm2mqtt-card/main/install.sh | bash
    ```
 3. The script will automatically download the latest release and place it in your `/config/www/gsm2mqtt/` folder.
 4. In Home Assistant, go to **Settings -> Dashboards -> Resources** and add:
@@ -35,7 +35,7 @@ If you have SSH access to your Home Assistant machine (e.g. Home Assistant OS, S
 
 ### Method 3: Fully Manual (For testing & offline systems)
 
-1. Go to the [Releases](https://github.com/legoser/GSM2MQTT-HA-Dashboard/releases) page and download the latest `gsm2mqtt-ha-dashboard-*.zip`.
+1. Go to the [Releases](https://github.com/legoser/gsm2mqtt-card/releases) page and download the latest `gsm2mqtt-card-*.zip`.
 2. Extract the contents.
 3. Copy the `gsm2mqtt-card.js` file into your Home Assistant `config/www/gsm2mqtt/` directory (you may need to create the `gsm2mqtt` folder).
 4. Register the resource in HA (Settings -> Dashboards -> Resources) with URL `/local/gsm2mqtt/gsm2mqtt-card.js` as a **JavaScript Module**.
@@ -143,6 +143,13 @@ notify_gsm2mqtt_sms:
 1. Navigate to **Settings -> Voice Assistants -> Expose**.
 2. Find the script `Отправить SMS через GSM2MQTT` and enable it for Assist.
 3. Now you can say or type to Assist: *"Отправь SMS на номер +79991234567 с текстом Привет!"*, and Assist will execute the notification!
+
+## 📸 Screenshots
+
+![Card overview](docs/images/card-overview.svg)
+![SMS and call history](docs/images/card-history.svg)
+
+> Временные заглушки: замените SVG на реальные скриншоты (`card-overview.png`, `card-history.png`) — вёрстка секции уже готова для HACS.
 
 ## 🛠 Development
 

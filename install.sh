@@ -24,7 +24,7 @@ elif [ -f "dist/gsm2mqtt-card.js" ]; then
     cp dist/gsm2mqtt-card.js "$WWW_DIR/"
 else
     # Try fetching from Github releases as fallback
-    LATEST_URL=$(curl -s https://api.github.com/repos/ej/GSM2MQTT-HA-addon/releases/latest | grep "browser_download_url.*gsm2mqtt-card\.js" | cut -d '"' -f 4)
+    LATEST_URL=$(curl -s https://api.github.com/repos/legoser/gsm2mqtt-card/releases/latest | grep "browser_download_url.*gsm2mqtt-card\.js" | cut -d '"' -f 4)
     if [ -z "$LATEST_URL" ]; then
         echo "Warning: Could not find the latest release on GitHub. Please copy gsm2mqtt-card.js to $WWW_DIR manually."
         exit 1
@@ -35,7 +35,7 @@ fi
 chmod 644 "$WWW_DIR/gsm2mqtt-card.js"
 
 echo "=========================================================="
-echo "✅ GSM2MQTT HA Addon installed successfully!"
+echo "✅ GSM2MQTT HA Dashboard installed successfully!"
 echo "File location: $WWW_DIR/gsm2mqtt-card.js"
 echo ""
 echo "Next steps in Home Assistant UI:"

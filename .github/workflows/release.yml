@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*.*.*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -15,15 +19,34 @@ jobs:
       TAG: ${{ github.ref_name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      - name: Verify tag is contained in main (releases are cut from main only)
+        run: |
+          if git merge-base --is-ancestor "$TAG" origin/main; then
+            echo "tag $TAG is contained in origin/main — proceeding with release"
+          else
+            echo "refusing to release: tag $TAG is not contained in origin/main" >&2
+            echo "releases must be cut from main: merge into main first, then re-tag" >&2
+            exit 1
+          fi
+
+      - name: Validate tag format (vMAJOR.MINOR.PATCH)
+        run: |
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "tag OK: $TAG"
+          else
+            echo "tag must match vMAJOR.MINOR.PATCH, got: $TAG" >&2
+            exit 1
+          fi
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 24
+          cache: npm
 
       - name: Install Dependencies
         run: npm ci
@@ -37,11 +60,11 @@ jobs:
           cp dist/gsm2mqtt-card.js release_package/
           cp install.sh README.md hacs.json release_package/
           cd release_package
-          zip -r ../gsm2mqtt-ha-addon-${TAG}.zip ./*
+          zip -r "../gsm2mqtt-card-${TAG}.zip" ./*
           cd ..
 
       - name: Generate Changelog
-        uses: orhun/git-cliff-action@v3
+        uses: orhun/git-cliff-action@v4
         id: git-cliff
         with:
           config: cliff.toml
@@ -58,20 +81,20 @@ jobs:
             echo ""
             echo "### Via HACS (Recommended)"
             echo "1. Go to HACS -> Frontend -> 3 dots (top right) -> Custom repositories"
-            echo "2. Add this repository URL with category \`Lovelace\`"
+            echo "2. Add \`https://github.com/legoser/gsm2mqtt-card\` with category \`Dashboard\`"
             echo "3. Click Download"
             echo ""
             echo "### Manual Installation"
-            echo "Download \`gsm2mqtt-ha-addon-${TAG}.zip\`, extract it, and run \`./install.sh\` on your Home Assistant machine."
+            echo "Download \`gsm2mqtt-card-${TAG}.zip\`, extract it, and run \`./install.sh\` on your Home Assistant machine."
             echo "Or simply copy \`gsm2mqtt-card.js\` to your \`/config/www/gsm2mqtt/\` directory."
           } > release_notes.md
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body_path: release_notes.md
           files: |
             dist/gsm2mqtt-card.js
-            gsm2mqtt-ha-addon-${TAG}.zip
+            gsm2mqtt-card-${TAG}.zip
