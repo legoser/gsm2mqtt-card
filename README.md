@@ -64,7 +64,8 @@ type: custom:gsm2mqtt-card
 modem_id: siemens_mc35i       # (Optional) Slot number ('1', '2') or explicit modem ID
 title: GSM Gateway           # (Optional) Card title
 show_tariff: true             # (Optional) Show remaining SMS tariff quota progress bar (default: true)
-show_last_sms: true           # (Optional) Show last incoming SMS (default: true)
+show_sms_history: false       # (Optional) Pin open received SMS history panel (default: false, opens via 📥 Входящие)
+show_call_history: false      # (Optional) Pin open call history panel (default: false, opens via 📞 Журнал звонков)
 show_tools: true              # (Optional) Show interactive quick-action buttons bar (default: true)
 show_sms: false               # (Optional) Permanently expand SMS sender panel (default: false)
 show_ussd: false              # (Optional) Permanently expand USSD panel (default: false)
@@ -78,9 +79,8 @@ By default, the card displays a clean, compact overview:
 1. **Status & Balance** (ready/offline indicator, balance value)
 2. **Signal & Operator** (cellular signal strength in dBm, network operator)
 3. **Tariff Remaining Quota** (SMS balance vs limit with visual progress bar, monthly usage, reset day)
-4. **Last Incoming Message** (sender, timestamp, text)
 
-To access actions (SMS, USSD, Call, Recipients, Tariff configuration), click any button on the bottom toolbar (`✉️ SMS`, `⚡ USSD`, `📞 Звонок`, `👥 Номера`, `⚙️ Тариф`) to expand that panel on demand, or pin it open via `show_*` options in your card YAML.
+To access actions and history (SMS, USSD, Call, Recipients, Tariff configuration, Incoming SMS, Call Log), click any button on the bottom toolbar (`✉️ SMS`, `⚡ USSD`, `📞 Звонок`, `👥 Номера`, `⚙️ Тариф`, `📥 Входящие`, `📞 Журнал звонков`) to expand that panel on demand, or pin it open via `show_*` options in your card YAML.
 
 ## 📊 Cellular Tariff & Quota Tracking
 

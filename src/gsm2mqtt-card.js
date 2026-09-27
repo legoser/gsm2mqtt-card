@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 
-console.info('%c GSM2MQTT-DASHBOARD %c v1.3.0 ', 'color: white; background: #03a9f4; font-weight: 700; border-radius: 3px 0 0 3px;', 'color: #03a9f4; background: #e1f5fe; font-weight: 700; border-radius: 0 3px 3px 0;');
+console.info('%c GSM2MQTT-DASHBOARD %c v1.4.0 ', 'color: white; background: #03a9f4; font-weight: 700; border-radius: 3px 0 0 3px;', 'color: #03a9f4; background: #e1f5fe; font-weight: 700; border-radius: 0 3px 3px 0;');
 
 class GSM2MQTTCard extends LitElement {
   static get properties() {
@@ -10,6 +10,7 @@ class GSM2MQTTCard extends LitElement {
       _ussdWaiting: { state: true },
       _ussdResponse: { state: true },
       _activePanel: { state: true },
+      _tariffExpanded: { state: true },
       _tariffSavedNotice: { state: true },
     };
   }
@@ -120,6 +121,55 @@ class GSM2MQTTCard extends LitElement {
         border-radius: 4px;
         transition: width 0.3s ease, background-color 0.3s ease;
       }
+      .tariff-compact {
+        background: var(--secondary-background-color, #f5f5f5);
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .tariff-compact-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .tariff-mini {
+        flex: 1;
+        min-width: 0;
+      }
+      .tariff-mini-top {
+        font-size: 0.8em;
+        font-weight: 600;
+        color: var(--primary-text-color, #212121);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tariff-mini-bar {
+        background: var(--divider-color, rgba(0, 0, 0, 0.1));
+        border-radius: 3px;
+        height: 5px;
+        width: 100%;
+        overflow: hidden;
+        margin-top: 4px;
+      }
+      .tariff-mini-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease, background-color 0.3s ease;
+      }
+      .tariff-chevron {
+        font-size: 0.8em;
+        color: var(--secondary-text-color, #727272);
+        flex-shrink: 0;
+      }
+      .tariff-details {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
       .tools-bar {
         display: flex;
         flex-wrap: wrap;
@@ -216,13 +266,50 @@ class GSM2MQTTCard extends LitElement {
       .quick-btn:hover {
         background: var(--divider-color, #e0e0e0);
       }
-      .inbox-box, .ussd-box {
+      .ussd-box {
         font-size: 0.85em;
         padding: 8px;
         background: var(--secondary-background-color, #f5f5f5);
         border-radius: 6px;
         min-height: 28px;
         color: var(--primary-text-color, #212121);
+      }
+      .history-box {
+        font-size: 0.85em;
+        padding: 8px;
+        background: var(--secondary-background-color, #f5f5f5);
+        border-radius: 6px;
+        max-height: 180px;
+        overflow-y: auto;
+        color: var(--primary-text-color, #212121);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .history-item {
+        border-bottom: 1px solid var(--divider-color, #e0e0e0);
+        padding: 4px 0;
+      }
+      .history-item:last-child {
+        border-bottom: none;
+      }
+      .history-head {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+      }
+      .history-link {
+        cursor: pointer;
+        color: var(--primary-color, #03a9f4);
+      }
+      .history-time {
+        font-size: 0.8em;
+        color: var(--secondary-text-color, #727272);
+        font-weight: 400;
+      }
+      .history-empty {
+        color: var(--secondary-text-color, #727272);
+        padding: 4px;
       }
       .ussd-box {
         margin-top: 6px;
@@ -269,7 +356,8 @@ class GSM2MQTTCard extends LitElement {
       topic_prefix: 'gsm2mqtt',
       modem_id: '',
       show_tariff: true,
-      show_last_sms: true,
+      show_sms_history: false,
+      show_call_history: false,
       show_tools: true,
       show_sms: false,
       show_ussd: false,
@@ -405,6 +493,10 @@ class GSM2MQTTCard extends LitElement {
     this._activePanel = this._activePanel === panel ? null : panel;
   }
 
+  _toggleTariff() {
+    this._tariffExpanded = !this._tariffExpanded;
+  }
+
   _handleUssd(e) {
     const input = this.shadowRoot.getElementById('ussdInput');
     if (input && input.value) {
@@ -487,6 +579,42 @@ class GSM2MQTTCard extends LitElement {
     this._publishMqtt('call/hangup', '{}');
   }
 
+  _handleClearSmsHistory() {
+    if (window.confirm('Очистить историю SMS?')) {
+      this._publishMqtt('sms/history/clear', 'CLEAR');
+    }
+  }
+
+  _handleClearCallHistory() {
+    if (window.confirm('Очистить историю звонков?')) {
+      this._publishMqtt('call/history/clear', 'CLEAR');
+    }
+  }
+
+  _fillSmsTo(num) {
+    if (!num) return;
+    this._activePanel = 'sms';
+    this.updateComplete.then(() => {
+      const el = this.shadowRoot.getElementById('smsTo');
+      if (el) {
+        el.value = num;
+        el.focus();
+      }
+    });
+  }
+
+  _fillCallNumber(num) {
+    if (!num) return;
+    this._activePanel = 'call';
+    this.updateComplete.then(() => {
+      const el = this.shadowRoot.getElementById('callNumber');
+      if (el) {
+        el.value = num;
+        el.focus();
+      }
+    });
+  }
+
   _handleSaveTariff() {
     const smsLimitInput = this.shadowRoot.getElementById('tariffSmsLimit');
     const smsUsedInput = this.shadowRoot.getElementById('tariffSmsUsed');
@@ -553,9 +681,11 @@ class GSM2MQTTCard extends LitElement {
     const balanceState = this._resolveEntity('balance', ['balance']);
     const signalState = this._resolveEntity('signal', ['signal', 'signal_strength', 'signal_dbm']);
     const operatorState = this._resolveEntity('operator', ['operator']);
-    const lastSmsState = this._resolveEntity('sms', ['last_sms', 'last_incoming_sms', 'incoming_sms', 'sms']);
+
     const statusState = this._resolveEntity('status', ['status', 'health']);
     const ussdState = this._resolveEntity('ussd', ['ussd_response', 'ussd']);
+    const smsHistoryState = this._resolveEntity('sms_history', ['sms_history']);
+    const callHistoryState = this._resolveEntity('call_history', ['call_history']);
     const tariffSmsState = this._resolveEntity('tariff_sms', ['sms_remaining', 'tariff']);
     const tariffCallState = this._resolveEntity('tariff_calls', ['call_minutes_remaining', 'call_minutes']);
 
@@ -619,161 +749,119 @@ class GSM2MQTTCard extends LitElement {
       `;
     }
 
-    // Tariff SMS quota display
+    // Tariff quotas: compact one-line summary, tap to expand full details
     const showTariff = this.config.show_tariff !== false;
-    let tariffHtml = html``;
+    const quotaColor = (percent) => {
+      if (percent <= 15) return 'var(--error-color, #c62828)';
+      if (percent <= 40) return 'var(--warning-color, #ff9800)';
+      return 'var(--success-color, #2e7d32)';
+    };
+
+    // SMS quota data
+    let smsQuota = null;
     if (showTariff && tariffSmsState && tariffSmsState.state !== 'unavailable' && tariffSmsState.state !== 'unknown') {
-      const remainingStr = tariffSmsState.state;
       const limit = Number(tariffSmsState.attributes?.sms_limit ?? 0);
       const monthCount = Number(tariffSmsState.attributes?.sms_month_count ?? 0);
       const dayCount = Number(tariffSmsState.attributes?.sms_day_count ?? 0);
       const resetDay = tariffSmsState.attributes?.reset_day_of_month || 1;
-
-      if (limit > 0) {
-        const remaining = Number(remainingStr) || 0;
-        const percent = Math.min(100, Math.max(0, Math.round((remaining / limit) * 100)));
-        let barColor = 'var(--success-color, #2e7d32)';
-        if (percent <= 15) {
-          barColor = 'var(--error-color, #c62828)';
-        } else if (percent <= 40) {
-          barColor = 'var(--warning-color, #ff9800)';
-        }
-
-        tariffHtml = html`
-          <div class="tariff-box">
-            <div class="tariff-header">
-              <span>📊 Лимит тарифа (SMS)</span>
-              <span class="tariff-val">${remaining} / ${limit}</span>
-            </div>
-            <div class="progress-container">
-              <div class="progress-bar" style="width: ${percent}%; background-color: ${barColor};"></div>
-            </div>
-            <div class="tariff-sub">
-              <span>Использовано: ${monthCount} шт. (сегодня: ${dayCount})</span>
-              <span>Сброс: ${resetDay}-го числа</span>
-            </div>
-          </div>
-        `;
-      } else {
-        tariffHtml = html`
-          <div class="tariff-box">
-            <div class="tariff-header">
-              <span>📊 Лимит тарифа (SMS)</span>
-              <span class="tariff-val" style="font-size:0.95em;">Без ограничений</span>
-            </div>
-            <div class="tariff-sub">
-              <span>Отправлено за месяц: ${monthCount} шт. (сегодня: ${dayCount})</span>
-              <span>Лимит не задан</span>
-            </div>
-          </div>
-        `;
-      }
+      const remaining = Number(tariffSmsState.state) || 0;
+      const percent = limit > 0 ? Math.min(100, Math.max(0, Math.round((remaining / limit) * 100))) : 100;
+      smsQuota = {
+        icon: '✉️',
+        value: limit > 0 ? `${remaining}/${limit}` : `${monthCount} шт`,
+        percent,
+        color: limit > 0 ? quotaColor(percent) : 'var(--primary-color, #03a9f4)',
+        title: '📊 Лимит тарифа (SMS)',
+        head: limit > 0 ? `${remaining} / ${limit}` : null,
+        subLeft: limit > 0
+          ? `Использовано: ${monthCount} шт. (сегодня: ${dayCount})`
+          : `Отправлено за месяц: ${monthCount} шт. (сегодня: ${dayCount})`,
+        subRight: limit > 0 ? `Сброс: ${resetDay}-го числа` : 'Лимит не задан',
+      };
     }
 
-    // Tariff Calls display (optional, if callLimit > 0 or callUsed > 0)
-    let tariffCallsHtml = html``;
+    // Call minutes quota data
+    let callQuota = null;
     if (showTariff && tariffCallState && tariffCallState.state !== 'unavailable' && tariffCallState.state !== 'unknown') {
       const callLimit = Number(tariffCallState.attributes?.call_minutes_limit ?? 0);
       const callUsed = Number(tariffCallState.attributes?.call_minutes_used ?? tariffCallState.attributes?.call_minutes_month_count ?? 0);
       const resetDay = tariffCallState.attributes?.reset_day_of_month || tariffSmsState?.attributes?.reset_day_of_month || 1;
-
-      if (callLimit > 0) {
-        const callRemaining = Number(tariffCallState.state) || 0;
-        const percent = Math.min(100, Math.max(0, Math.round((callRemaining / callLimit) * 100)));
-        let barColor = 'var(--success-color, #2e7d32)';
-        if (percent <= 15) barColor = 'var(--error-color, #c62828)';
-        else if (percent <= 40) barColor = 'var(--warning-color, #ff9800)';
-
-        tariffCallsHtml = html`
-          <div class="tariff-box" style="margin-top:-6px;">
-            <div class="tariff-header">
-              <span>📞 Лимит звонков (минуты)</span>
-              <span class="tariff-val">${callRemaining} / ${callLimit} мин</span>
-            </div>
-            <div class="progress-container">
-              <div class="progress-bar" style="width: ${percent}%; background-color: ${barColor};"></div>
-            </div>
-            <div class="tariff-sub">
-              <span>Использовано: ${callUsed} мин.</span>
-              <span>Сброс: ${resetDay}-го числа</span>
-            </div>
-          </div>
-        `;
-      } else if (callUsed > 0) {
-        tariffCallsHtml = html`
-          <div class="tariff-box" style="margin-top:-6px;">
-            <div class="tariff-header">
-              <span>📞 Лимит звонков (минуты)</span>
-              <span class="tariff-val" style="font-size:0.95em;">Без ограничений</span>
-            </div>
-            <div class="tariff-sub">
-              <span>Использовано за месяц: ${callUsed} мин.</span>
-              <span>Лимит не задан</span>
-            </div>
-          </div>
-        `;
+      const callRemaining = Number(tariffCallState.state) || 0;
+      const percent = callLimit > 0 ? Math.min(100, Math.max(0, Math.round((callRemaining / callLimit) * 100))) : 100;
+      if (callLimit > 0 || callUsed > 0) {
+        callQuota = {
+          icon: '📞',
+          value: callLimit > 0 ? `${callRemaining}/${callLimit}` : `${callUsed} мин`,
+          percent,
+          color: callLimit > 0 ? quotaColor(percent) : 'var(--primary-color, #03a9f4)',
+          title: '📞 Лимит звонков (минуты)',
+          head: callLimit > 0 ? `${callRemaining} / ${callLimit} мин` : null,
+          subLeft: callLimit > 0 ? `Использовано: ${callUsed} мин.` : `Использовано за месяц: ${callUsed} мин.`,
+          subRight: callLimit > 0 ? `Сброс: ${resetDay}-го числа` : 'Лимит не задан',
+        };
       }
     }
 
-    // Tariff Data Traffic display (optional, if dataLimitMB > 0 or dataBytesUsed > 0)
-    let tariffDataHtml = html``;
-    const dataLimitMB = Number(tariffSmsState?.attributes?.data_traffic_limit_mb ?? 0);
-    const dataBytesUsed = Number(tariffSmsState?.attributes?.data_bytes_used ?? 0);
-    const dataBytesRem = Number(tariffSmsState?.attributes?.data_bytes_remaining ?? 0);
-    const resetDay = tariffSmsState?.attributes?.reset_day_of_month || 1;
-
-    if (showTariff && (dataLimitMB > 0 || dataBytesUsed > 0)) {
-      const dataUsedMB = (dataBytesUsed / 1048576).toFixed(1);
-      const dataRemMB = (dataBytesRem / 1048576).toFixed(1);
-
-      if (dataLimitMB > 0) {
-        const percent = Math.min(100, Math.max(0, Math.round((dataBytesRem / (dataLimitMB * 1048576)) * 1048576 > 0 ? (dataBytesRem / (dataLimitMB * 1048576)) * 100 : 0)));
-        let barColor = 'var(--success-color, #2e7d32)';
-        if (percent <= 15) barColor = 'var(--error-color, #c62828)';
-        else if (percent <= 40) barColor = 'var(--warning-color, #ff9800)';
-
-        tariffDataHtml = html`
-          <div class="tariff-box" style="margin-top:-6px;">
-            <div class="tariff-header">
-              <span>🌐 Лимит трафика (интернет)</span>
-              <span class="tariff-val">${dataRemMB} / ${dataLimitMB} MB</span>
-            </div>
-            <div class="progress-container">
-              <div class="progress-bar" style="width: ${percent}%; background-color: ${barColor};"></div>
-            </div>
-            <div class="tariff-sub">
-              <span>Использовано: ${dataUsedMB} MB</span>
-              <span>Сброс: ${resetDay}-го числа</span>
-            </div>
-          </div>
-        `;
-      } else {
-        tariffDataHtml = html`
-          <div class="tariff-box" style="margin-top:-6px;">
-            <div class="tariff-header">
-              <span>🌐 Лимит трафика (интернет)</span>
-              <span class="tariff-val" style="font-size:0.95em;">Без ограничений</span>
-            </div>
-            <div class="tariff-sub">
-              <span>Использовано за месяц: ${dataUsedMB} MB</span>
-              <span>Лимит не задан</span>
-            </div>
-          </div>
-        `;
+    // Data traffic quota data
+    let dataQuota = null;
+    {
+      const dataLimitMB = Number(tariffSmsState?.attributes?.data_traffic_limit_mb ?? 0);
+      const dataBytesUsed = Number(tariffSmsState?.attributes?.data_bytes_used ?? 0);
+      const dataBytesRem = Number(tariffSmsState?.attributes?.data_bytes_remaining ?? 0);
+      const resetDay = tariffSmsState?.attributes?.reset_day_of_month || 1;
+      if (showTariff && (dataLimitMB > 0 || dataBytesUsed > 0)) {
+        const dataUsedMB = (dataBytesUsed / 1048576).toFixed(1);
+        const dataRemMB = (dataBytesRem / 1048576).toFixed(1);
+        const percent = dataLimitMB > 0 ? Math.min(100, Math.max(0, Math.round((dataBytesRem / (dataLimitMB * 1048576)) * 100))) : 100;
+        dataQuota = {
+          icon: '🌐',
+          value: dataLimitMB > 0 ? `${dataRemMB}/${dataLimitMB}` : `${dataUsedMB} MB`,
+          percent,
+          color: dataLimitMB > 0 ? quotaColor(percent) : 'var(--primary-color, #03a9f4)',
+          title: '🌐 Лимит трафика (интернет)',
+          head: dataLimitMB > 0 ? `${dataRemMB} / ${dataLimitMB} MB` : null,
+          subLeft: `Использовано: ${dataUsedMB} MB`,
+          subRight: dataLimitMB > 0 ? `Сброс: ${resetDay}-го числа` : 'Лимит не задан',
+        };
       }
     }
 
-    // Last incoming SMS display
-    const showLastSms = this.config.show_last_sms !== false;
-    let lastSmsHtml = html`Нет входящих сообщений`;
-    if (lastSmsState && lastSmsState.state !== 'unknown' && lastSmsState.state !== 'unavailable') {
-      const from = (lastSmsState.attributes && lastSmsState.attributes.from) || 'Отправитель';
-      const time = (lastSmsState.attributes && lastSmsState.attributes.timestamp) ? ` (${lastSmsState.attributes.timestamp})` : '';
-      const text = lastSmsState.state || (lastSmsState.attributes && lastSmsState.attributes.text) || '';
-      if (text) {
-        lastSmsHtml = html`
-          <div><strong>${from}${time}:</strong></div>
-          <div style="margin-top:2px;">${text}</div>
+    const quotas = [smsQuota, callQuota, dataQuota].filter(q => q);
+    let tariffSummaryHtml = html``;
+    let tariffDetailsHtml = html``;
+    if (quotas.length > 0) {
+      tariffSummaryHtml = html`
+        <div class="tariff-compact" @click="${this._toggleTariff}">
+          <div class="tariff-compact-row">
+            ${quotas.map(q => html`
+              <div class="tariff-mini">
+                <div class="tariff-mini-top">${q.icon} ${q.value}</div>
+                <div class="tariff-mini-bar"><div class="tariff-mini-fill" style="width: ${q.percent}%; background-color: ${q.color};"></div></div>
+              </div>
+            `)}
+            <span class="tariff-chevron">${this._tariffExpanded ? '▴' : '▾'}</span>
+          </div>
+        </div>
+      `;
+      if (this._tariffExpanded) {
+        tariffDetailsHtml = html`
+          <div class="tariff-details">
+            ${quotas.map(q => html`
+              <div class="tariff-box">
+                <div class="tariff-header">
+                  <span>${q.title}</span>
+                  ${q.head ? html`<span class="tariff-val">${q.head}</span>` : html`<span class="tariff-val" style="font-size:0.95em;">Без ограничений</span>`}
+                </div>
+                <div class="progress-container">
+                  <div class="progress-bar" style="width: ${q.percent}%; background-color: ${q.color};"></div>
+                </div>
+                <div class="tariff-sub">
+                  <span>${q.subLeft}</span>
+                  <span>${q.subRight}</span>
+                </div>
+              </div>
+            `)}
+          </div>
         `;
       }
     }
@@ -786,6 +874,8 @@ class GSM2MQTTCard extends LitElement {
     const isCallVisible = this.config.show_call || this._activePanel === 'call';
     const isRecipientsVisible = this.config.show_recipients || this._activePanel === 'recipients';
     const isTariffEditorVisible = this.config.show_tariff_editor || this._activePanel === 'tariff';
+    const isSmsHistoryVisible = this.config.show_sms_history || this._activePanel === 'sms_history';
+    const isCallHistoryVisible = this.config.show_call_history || this._activePanel === 'call_history';
     const showTools = this.config.show_tools !== false;
 
     return html`
@@ -813,16 +903,61 @@ class GSM2MQTTCard extends LitElement {
             </div>
           </div>
 
-          <!-- Tariff remaining quota progress bar -->
-          ${tariffHtml}
-          ${tariffCallsHtml}
-          ${tariffDataHtml}
+          <!-- Tariff quotas: compact summary, tap to expand -->
+          ${tariffSummaryHtml}
+          ${tariffDetailsHtml}
 
-          <!-- Last incoming SMS -->
-          ${showLastSms ? html`
-            <div class="section-title">📥 Последнее сообщение</div>
-            <div class="inbox-box">
-              ${lastSmsHtml}
+          <!-- SMS History Panel -->
+          ${isSmsHistoryVisible ? html`
+            <div class="tool-panel">
+              <div class="section-title">📥 История SMS (${smsHistoryState?.state ?? '0'})</div>
+              <div class="history-box">
+                ${(smsHistoryState?.attributes?.items || []).length === 0 ? html`
+                  <span class="history-empty">Нет входящих сообщений</span>
+                ` : smsHistoryState.attributes.items.slice().sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || ''))).map(item => html`
+                  <div class="history-item">
+                    <div class="history-head">
+                      <span class="history-link" @click="${() => this._fillSmsTo(item.sender || item.from || '')}">${item.sender || item.from || 'Неизвестный'}</span>
+                      <span class="history-time">${item.timestamp || ''}</span>
+                    </div>
+                    <div>${item.text || ''}</div>
+                  </div>
+                `)}
+              </div>
+              <div class="input-row" style="justify-content:flex-end;">
+                <button class="btn-danger" @click="${this._handleClearSmsHistory}" ?disabled="${isOffline}">🗑️ Очистить</button>
+              </div>
+            </div>
+          ` : html``}
+
+          <!-- Call History Panel -->
+          ${isCallHistoryVisible ? html`
+            <div class="tool-panel">
+              <div class="section-title">📞 История звонков (${callHistoryState?.state ?? '0'})</div>
+              <div class="history-box">
+                ${(callHistoryState?.attributes?.items || []).length === 0 ? html`
+                  <span class="history-empty">Нет записей о звонках</span>
+                ` : callHistoryState.attributes.items.slice().reverse().map(item => {
+                  const isOut = item.direction === 'outgoing';
+                  const icon = isOut ? '↗️' : (item.status === 'missed' ? '❌' : '↙️');
+                  const dur = item.duration ? ` (${item.duration}с)` : '';
+                  return html`
+                    <div class="history-item">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                          <span>${icon}</span>
+                          <span class="history-link" @click="${() => this._fillCallNumber(item.number || '')}">${item.number || 'Unknown'}</span>
+                          <span class="history-time">${dur} [${item.status || ''}]</span>
+                        </div>
+                        <span class="history-time">${item.timestamp || ''}</span>
+                      </div>
+                    </div>
+                  `;
+                })}
+              </div>
+              <div class="input-row" style="justify-content:flex-end;">
+                <button class="btn-danger" @click="${this._handleClearCallHistory}" ?disabled="${isOffline}">🗑️ Очистить</button>
+              </div>
             </div>
           ` : html``}
 
@@ -960,6 +1095,12 @@ class GSM2MQTTCard extends LitElement {
               <button class="tool-toggle-btn ${this._activePanel === 'call' ? 'active' : ''}" @click="${() => this._togglePanel('call')}">
                 📞 Звонок
               </button>
+              <button class="tool-toggle-btn ${this._activePanel === 'sms_history' ? 'active' : ''}" @click="${() => this._togglePanel('sms_history')}">
+                📥 Входящие
+              </button>
+              <button class="tool-toggle-btn ${this._activePanel === 'call_history' ? 'active' : ''}" @click="${() => this._togglePanel('call_history')}">
+                📞 Журнал звонков
+              </button>
               <button class="tool-toggle-btn ${this._activePanel === 'recipients' ? 'active' : ''}" @click="${() => this._togglePanel('recipients')}">
                 👥 Номера
               </button>
@@ -970,7 +1111,7 @@ class GSM2MQTTCard extends LitElement {
           ` : html``}
 
           <div style="font-size:0.7em; color:var(--secondary-text-color, #727272); text-align:right; margin-top:10px;">
-            GSM2MQTT Dashboard v1.3.0
+            GSM2MQTT Dashboard v1.4.0
           </div>
 
         </div>
@@ -981,7 +1122,8 @@ class GSM2MQTTCard extends LitElement {
   getCardSize() {
     let size = 3;
     if (this.config?.show_tariff !== false) size += 1;
-    if (this.config?.show_last_sms !== false) size += 2;
+    if (this.config?.show_sms_history || this._activePanel === 'sms_history') size += 3;
+    if (this.config?.show_call_history || this._activePanel === 'call_history') size += 2;
     if (this.config?.show_sms || this._activePanel === 'sms') size += 3;
     if (this.config?.show_ussd || this._activePanel === 'ussd') size += 2;
     if (this.config?.show_call || this._activePanel === 'call') size += 2;
