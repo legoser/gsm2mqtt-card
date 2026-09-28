@@ -146,10 +146,9 @@ notify_gsm2mqtt_sms:
 
 ## 📸 Screenshots
 
-![Card overview](docs/images/card-overview.svg)
-![SMS and call history](docs/images/card-history.svg)
-
-> Временные заглушки: замените SVG на реальные скриншоты (`card-overview.png`, `card-history.png`) — вёрстка секции уже готова для HACS.
+![Card Overview](docs/images/card-overview.png)
+![SMS and Call History](docs/images/card-history.png)
+![Tariff and Quota Tracking](docs/images/card-tarif.png)
 
 ## 🛠 Development
 
