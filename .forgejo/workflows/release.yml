@@ -9,9 +9,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
   build_and_release:
     runs-on: ubuntu-latest
@@ -68,15 +65,16 @@ jobs:
             prev="$(git tag --list 'v*.*.*' --sort=-v:refname | grep -x -v "$TAG" | head -n 1 || true)"
             if [ -n "$prev" ]; then range="$prev..$TAG"; else range="$TAG"; fi
             echo "## What's changed ($range)"
-            echo
+            echo ""
             git log "$range" --pretty=format:'- %s (%h)' --no-merges 2>/dev/null \
               || git log -20 HEAD --pretty=format:'- %s (%h)' --no-merges
+            echo ""
             echo ""
             echo "## 🛠 Installation"
             echo ""
             echo "### Via HACS (Recommended)"
             echo "1. Go to HACS -> Frontend -> 3 dots (top right) -> Custom repositories"
-            echo "2. Add this repository URL with category \`Dashboard\`"
+            echo "2. Add \`${{ github.server_url }}/${{ github.repository }}\` with category \`Dashboard\`"
             echo "3. Click Download"
             echo ""
             echo "### Manual Installation"
@@ -98,12 +96,22 @@ jobs:
                 --rawfile body release_notes.md \
                 '{tag_name:$tag,name:$name,body:$body,draft:false,prerelease:false}')" \
               "${API}/releases" | jq -r '.id // empty')"
+          else
+            curl -sS -X PATCH -H "$auth" -H 'Content-Type: application/json' \
+              -d "$(jq -n --arg tag "$TAG" --arg name "$TAG" \
+                --rawfile body release_notes.md \
+                '{tag_name:$tag,name:$name,body:$body,draft:false,prerelease:false}')" \
+              "${API}/releases/${id}" > /dev/null
           fi
           if [ -z "$id" ]; then echo "failed to create or find release $TAG" >&2; exit 1; fi
           echo "release id: $id"
+          # Delete existing assets if re-running
+          for asset_id in $(curl -sS -H "$auth" "${API}/releases/${id}/assets" | jq -r '.[].id // empty'); do
+            curl -sS -X DELETE -H "$auth" "${API}/releases/${id}/assets/${asset_id}" > /dev/null
+          done
           for f in dist/gsm2mqtt-card.js "gsm2mqtt-card-${TAG}.zip"; do
             echo "uploading $(basename "$f")..."
-            curl -sS -X POST -H "$auth" --data-binary "@${f}" \
+            curl -sS -X POST -H "$auth" -F "attachment=@${f}" \
               "${API}/releases/${id}/assets?name=$(basename "$f")" > /dev/null
           done
           echo "published: ${API}/releases/${id}"
